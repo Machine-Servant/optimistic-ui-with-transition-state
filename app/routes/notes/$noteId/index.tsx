@@ -1,7 +1,8 @@
 import type { ActionArgs, LoaderArgs } from '@remix-run/node';
 import { json, redirect } from '@remix-run/node';
-import { Form, useCatch, useLoaderData } from '@remix-run/react';
+import { useCatch, useLoaderData } from '@remix-run/react';
 import invariant from 'tiny-invariant';
+import { Note } from '~/components/note';
 
 import { deleteNote, getNote } from '~/models/note.server';
 import { requireUserId } from '~/session.server';
@@ -14,7 +15,12 @@ export async function loader({ request, params }: LoaderArgs) {
   if (!note) {
     throw new Response('Not Found', { status: 404 });
   }
-  return json({ note });
+
+  const slowDown = new Promise<typeof note>((resolve) =>
+    setTimeout(() => resolve(note), 2000)
+  );
+
+  return json({ note: await slowDown });
 }
 
 export async function action({ request, params }: ActionArgs) {
@@ -29,21 +35,7 @@ export async function action({ request, params }: ActionArgs) {
 export default function NoteDetailsPage() {
   const data = useLoaderData<typeof loader>();
 
-  return (
-    <div>
-      <h3 className="text-2xl font-bold">{data.note.title}</h3>
-      <p className="py-6">{data.note.body}</p>
-      <hr className="my-4" />
-      <Form method="post">
-        <button
-          type="submit"
-          className="rounded bg-blue-500  py-2 px-4 text-white hover:bg-blue-600 focus:bg-blue-400"
-        >
-          Delete
-        </button>
-      </Form>
-    </div>
-  );
+  return <Note data={data} />;
 }
 
 export function ErrorBoundary({ error }: { error: Error }) {

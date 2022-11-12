@@ -1,10 +1,24 @@
 import type { LoaderArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
-import { Form, Link, NavLink, Outlet, useLoaderData } from '@remix-run/react';
+import {
+  Form,
+  Link,
+  NavLink,
+  Outlet,
+  useLoaderData,
+  useTransition,
+} from '@remix-run/react';
+import { useMemo } from 'react';
+import { EditNote } from '~/components/edit-note';
+import { Note } from '~/components/note';
 
+import { getNoteListItems } from '~/models/note.server';
 import { requireUserId } from '~/session.server';
 import { useUser } from '~/utils';
-import { getNoteListItems } from '~/models/note.server';
+
+type TransitionLocationState = {
+  page: 'note' | 'edit-note';
+};
 
 export async function loader({ request }: LoaderArgs) {
   const userId = await requireUserId(request);
@@ -15,6 +29,26 @@ export async function loader({ request }: LoaderArgs) {
 export default function NotesPage() {
   const data = useLoaderData<typeof loader>();
   const user = useUser();
+
+  const transition = useTransition();
+
+  const OptimisticUI = useMemo(() => {
+    if (transition.state === 'loading') {
+      const { page } =
+        (transition.location?.state as TransitionLocationState) || {};
+
+      switch (page) {
+        case 'note': {
+          return <Note />;
+        }
+        case 'edit-note': {
+          return <EditNote />;
+        }
+      }
+    }
+
+    return null;
+  }, [transition.state, transition.location?.state]);
 
   return (
     <div className="flex h-full min-h-screen flex-col">
@@ -52,6 +86,7 @@ export default function NotesPage() {
                       `block border-b p-4 text-xl ${isActive ? 'bg-white' : ''}`
                     }
                     to={note.id}
+                    state={{ page: 'note' }}
                   >
                     📝 {note.title}
                   </NavLink>
@@ -62,7 +97,7 @@ export default function NotesPage() {
         </div>
 
         <div className="flex-1 p-6">
-          <Outlet />
+          {transition.state === 'loading' ? OptimisticUI : <Outlet />}
         </div>
       </main>
     </div>
